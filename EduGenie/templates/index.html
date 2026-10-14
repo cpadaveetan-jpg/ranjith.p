@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGenie - Learning Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <p class="tag">AI-POWERED LEARNING</p>
+      <h1>EduGenie</h1>
+      <p>Google Gemini Powered Learning Assistant</p>
+    </section>
+
+    <section class="card">
+      <label for="task">Choose a task</label>
+      <select id="task">
+        <option value="explain">Explain</option>
+        <option value="qa">QnA</option>
+        <option value="quiz">Quiz</option>
+        <option value="summary">Summary</option>
+        <option value="recommend">Recommend Path</option>
+      </select>
+
+      <label for="inputText">Enter your topic, question, or passage</label>
+      <textarea id="inputText" rows="9" placeholder="Example: Explain photosynthesis in simple words."></textarea>
+
+      <button id="submitBtn" onclick="runTask()">Submit</button>
+      <div id="status" class="status"></div>
+      <div id="result" class="result"></div>
+    </section>
+  </main>
+
+<script>
+async function runTask() {
+  const task = document.getElementById("task").value;
+  const text = document.getElementById("inputText").value.trim();
+  const result = document.getElementById("result");
+  const status = document.getElementById("status");
+  const button = document.getElementById("submitBtn");
+
+  if (!text) {
+    result.innerHTML = "<p>Please enter some input.</p>";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Working...";
+  result.innerHTML = "";
+
+  try {
+    const response = await fetch("/api/task", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({task, text})
+    });
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.error || "Request failed.");
+
+    if (task === "quiz" && Array.isArray(data.result)) {
+      result.innerHTML = data.result.map((q, i) => `
+        <div class="quiz">
+          <h3>Question ${i + 1}</h3>
+          <p>${escapeHtml(q.question)}</p>
+          <ol type="A">${q.options.map(o => `<li>${escapeHtml(o)}</li>`).join("")}</ol>
+          <p><strong>Answer:</strong> ${escapeHtml(q.answer)}</p>
+        </div>
+      `).join("");
+    } else {
+      result.innerHTML = `<pre>${escapeHtml(String(data.result ?? ""))}</pre>`;
+    }
+  } catch (err) {
+    result.innerHTML = `<p class="error">${escapeHtml(err.message)}</p>`;
+  } finally {
+    status.textContent = "";
+    button.disabled = false;
+  }
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#039;"
+  }[ch]));
+}
+</script>
+</body>
+</html>
